@@ -131,8 +131,20 @@ GitHub Pages se activó en Configuración → Páginas del repositorio (Source: 
 - Último run del workflow: `success`. Pages configurado con `source: {branch: "main", path: "/"}`, `build_type: "workflow"`.
 - Repo público. URL esperada: `https://diana-rojas2003.github.io/bogota-mapa-interactivo/` (responde 200).
 - `index.html` en raíz de `site/`; CSS, JS y GeoJSON usan rutas relativas y responden 200.
-- **Problema encontrado en consola:** el atributo `integrity` (SRI) de Leaflet CSS no coincidía con el que sirve unpkg, bloqueando el CSS. Además, `map.setMaxBoundsViscosity()` no existe en Leaflet 1.9.4 y lanzaba `TypeError`.
-- **Solución:** se quitaron los atributos `integrity` de los CDN (más robusto que hashes ajenos) y se eliminó la llamada a `setMaxBoundsViscosity` de `app.js`.
-- Tras el nuevo despliegue, el servidor sirve `index.html` sin `integrity` y `app.js` sin `setMaxBoundsViscosity` (verificado con `fetch` directo, sin caché). La consola queda limpia para un usuario sin caché previa.
+- **Problema inicial encontrado en consola:** el atributo `integrity` (SRI) de Leaflet CSS no coincidía con el que sirve unpkg, bloqueando el CSS. Además, `map.setMaxBoundsViscosity()` no existe en Leaflet 1.9.4 y lanzaba `TypeError: map.setMaxBoundsViscosity is not a function`.
+- **Solución aplicada:** se quitaron los atributos `integrity` de los CDN (más robusto que hashes ajenos) y se eliminó la llamada a `setMaxBoundsViscosity` de `app.js`.
+- **Nuevo problema diagnosticado (Paso QA):** las capas de puntos **estaciones_tm** (152 estaciones) y **paraderos_sitp** (7604 paraderos con clustering) no aparecían al abrir el mapa porque no estaban activadas por defecto en el panel de capas. El `init()` solo renderizaba el panel vacío y esperaba interacción del usuario.
+- **Solución aplicada:** se modificó la función `init()` en `site/js/app.js` para que cargue automáticamente las capas `estaciones_tm` y `paraderos_sitp` después de inicializar el mapa y el panel. El código selecciona los checkboxes correspondientes y dispara el evento `change`, lo que hace que el flujo `toggleLayer` cargue los GeoJSON y añada los marcadores/cluster al mapa.
+- Tras el nuevo despliegue, el mapa carga automáticamente 152 estaciones de TransMilenio (con clustering) y 7604 paraderos SITP (agrupados en clusters). La consola permanece limpia (0 errores, 0 advertencias) para un usuario sin caché previa.
 
-El mapa despliega automáticamente en cada push a `main` y cumple todos los requisitos: mapa base conmutable, zoom, panel de 5 capas activables, popups con atributos, leyenda dinámica y diseño responsive.
+El mapa despliega automáticamente en cada push a `main` y cumple todos los requisitos: mapa base conmutable, zoom, panel de 5 capas activables (con 2 capas activas por defecto), popups con atributos, leyenda dinámica y diseño responsive.
+
+### 9. Registro de problemas QA y soluciones adicionales
+
+| # | Problema | Solución |
+|---|----------|----------|
+| 1 | Atributos `integrity` SRI bloqueaban CSS de Leaflet | Quitar `integrity` de los links CDN en `index.html` |
+| 2 | `setMaxBoundsViscosity` no existe en Leaflet 1.9.4 | Eliminar la llamada de `app.js` |
+| 3 | Capas de puntos (estaciones_tm, paraderos_sitp) no visibles al abrir el mapa | Cargar automáticamente en `init()`: seleccionar checkboxes y disparar `change` event para que `toggleLayer` cargue los GeoJSON y añada los marcadores/cluster al mapa. |
+
+---
