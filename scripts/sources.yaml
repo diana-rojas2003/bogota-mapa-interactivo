@@ -1,0 +1,112 @@
+# Catálogo de fuentes oficiales de datos abiertos de Bogotá.
+# Todas las capas se descargan en EPSG:4326 y se publican simplificadas.
+# Verificado: 2026-11-05
+version: 1
+
+settings:
+  out_dir: site/data
+  raw_dir: cache/raw
+  timeout: 60
+  retries: 3
+  coordinate_precision: 5
+  max_file_mb: 6
+
+layers:
+  localidades:
+    titulo: Localidades
+    descripcion: División política y administrativa de Bogotá D.C. (20 localidades)
+    fuente: Servicios GIS - Catastro Bogotá (IDECA)
+    tipo: arcgis
+    url: https://serviciosgis.catastrobogota.gov.co/arcgis/rest/services/ordenamientoterritorial/localidad/MapServer/0/query
+    geometry: polygon
+    simplify: 0.00004
+    campos:
+      LOCNOMBRE: nombre
+      LOCCODIGO: codigo
+    popup:
+      - {campo: nombre, etiqueta: Localidad}
+      - {campo: codigo, etiqueta: Código}
+      - {campo: area_ha, etiqueta: Área, formato: numero, unidad: ha}
+      - {campo: n_parques, etiqueta: Parques, formato: entero}
+      - {campo: km_ciclorruta, etiqueta: Ciclorrutas, formato: decimal, unidad: km}
+
+  ciclorrutas:
+    titulo: Ciclorrutas
+    descripcion: Infraestructura ciclista de Bogotá D.C.
+    fuente: Servicios GIS - Catastro Bogotá (IDECA)
+    tipo: arcgis
+    url: https://serviciosgis.catastrobogota.gov.co/arcgis/rest/services/Mapa_Referencia/Mapa_Referencia/MapServer/18/query
+    geometry: polygon
+    simplify: 0.00003
+    campos:
+      CICCODIGO: codigo
+      CICCIV: civ
+    popup:
+      - {campo: codigo, etiqueta: Código}
+      - {campo: civ, etiqueta: CIV}
+      - {campo: largo_km, etiqueta: Longitud, formato: decimal, unidad: km}
+
+  estaciones_tm:
+    titulo: Estaciones TransMilenio
+    descripcion: Estaciones troncales del sistema TransMilenio
+    fuente: GIS TransMilenio
+    tipo: arcgis
+    url: https://gis.transmilenio.gov.co/arcgis/rest/services/Troncal/consulta_estaciones_troncales/MapServer/0/query
+    geometry: point
+    simplify: 0
+    campos:
+      nombre_estacion: nombre
+      numero_estacion: codigo
+      troncal_estacion: troncal
+      ubicacion_estacion: ubicacion
+      tipo_estacion: tipo
+      biciestacion_estacion: biciestacion
+      capacidad_biciestacion_estacion: capacidad_bicis
+    popup:
+      - {campo: nombre, etiqueta: Estación}
+      - {campo: codigo, etiqueta: Código}
+      - {campo: troncal, etiqueta: Troncal}
+      - {campo: ubicacion, etiqueta: Ubicación}
+      - {campo: biciestacion, etiqueta: Biciestación}
+
+  paraderos_sitp:
+    titulo: Paraderos SITP
+    descripcion: Paraderos del componente zonal del SITP
+    fuente: GIS TransMilenio
+    tipo: arcgis
+    url: https://gis.transmilenio.gov.co/arcgis/rest/services/Zonal/consulta_paraderos_zonales/MapServer/0/query
+    geometry: point
+    simplify: 0
+    campos:
+      nombre: nombre
+      cenefa: cenefa
+      direccion_bandera: direccion
+      localidad: localidad
+      zona_sitp: zona
+    popup:
+      - {campo: nombre, etiqueta: Paradero}
+      - {campo: cenefa, etiqueta: Cenefa}
+      - {campo: direccion, etiqueta: Dirección}
+      - {campo: localidad, etiqueta: Localidad}
+      - {campo: zona, etiqueta: Zona SITP}
+
+  parques:
+    titulo: Parques
+    descripcion: Parques urbanos y rurales del POT
+    fuente: Datos Abiertos Bogotá - POT
+    tipo: geojson
+    url: https://datosabiertos.bogota.gov.co/dataset/d6683997-992c-4713-a3e4-ff86b09f8f68/resource/b7ce4078-60f2-457f-8be5-e0e2ab7c6a75/download/parque_urbano_rural.geojson
+    geometry: polygon
+    simplify: 0.00002
+    campos:
+      NOMBRE_TOT: nombre
+      CATEGORIA: categoria
+      ELEMENTO: elemento
+      COMPONENTE: componente
+      SUBZONA: subzona
+    popup:
+      - {campo: nombre, etiqueta: Parque}
+      - {campo: categoria, etiqueta: Categoría}
+      - {campo: elemento, etiqueta: Elemento}
+      - {campo: subzona, etiqueta: Subzona}
+      - {campo: area_ha, etiqueta: Área, formato: numero, unidad: ha}

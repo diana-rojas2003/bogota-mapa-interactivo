@@ -1,0 +1,4 @@
+requests==2.32.3
+shapely==2.0.6
+pyproj==3.7.0
+PyYAML==6.0.2
