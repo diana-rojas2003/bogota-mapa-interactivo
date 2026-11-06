@@ -232,5 +232,8 @@ Se añadió `tests/test_automatic_layers.js` como test de verificación QA:
   [PASS] Estado de capas verificado en el mapa: TM onMap=true, SITP onMap=true
   [SUCCESS] Todas las aserciones pasaron exitosamente. Marcadores y clusters verificados.
   ```
-- **Captura guardada:** `docs/captura_local_verificacion.png`
+- **Capturas guardadas:**
+  - Local: `docs/captura_local_verificacion.png`
+  - URL pública: `docs/captura_publica_verificacion.png`
 - **Consola del navegador:** 0 errores, 0 excepciones no controladas.
+- **URL pública verificada:** https://diana-rojas2003.github.io/bogota-mapa-interactivo/
