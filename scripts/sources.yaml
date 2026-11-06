@@ -96,6 +96,7 @@ layers:
     fuente: Datos Abiertos Bogotá - POT
     tipo: geojson
     url: https://datosabiertos.bogota.gov.co/dataset/d6683997-992c-4713-a3e4-ff86b09f8f68/resource/b7ce4078-60f2-457f-8be5-e0e2ab7c6a75/download/parque_urbano_rural.geojson
+    source_crs: EPSG:6247
     geometry: polygon
     simplify: 0.00002
     campos:
