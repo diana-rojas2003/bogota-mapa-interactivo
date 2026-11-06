@@ -458,8 +458,25 @@
     // Cerrar panel al hacer clic en una capa (móvil) — opcional, lo dejamos abierto.
     renderLayerList();
 
+    // --- CARGAR AUTOMÁTICAMENTE las capas de puntos por defecto ---
+    // Estaciones TransMilenio y Paraderos SITP (con clustering)
+    const defaultPointLayers = ['estaciones_tm', 'paraderos_sitp'];
+    for (const key of defaultPointLayers) {
+      const state = layersState[key];
+      if (state && !state.loaded && !state.failed) {
+        loadLayer(key).then(state => {
+          // Marcar el checkbox como activado después de cargarse
+          const input = $(`input[data-layer="${key}"]`);
+          if (input) {
+            input.checked = true;
+            input.dispatchEvent(new Event('change'));
+          }
+        });
+      }
+    }
+
     initMap();
-    showInfo('Mapa listo. Activa las capas del panel.', 2500);
+    showInfo('Mapa listo. Las capas de TransMilenio y SITP se cargan automáticamente.', 2500);
   }
 
   // Arranque
