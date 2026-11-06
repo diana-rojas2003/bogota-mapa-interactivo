@@ -122,9 +122,17 @@ Todos los modelos usados son gratuitos ($0 por millón de tokens). Estimación a
 - Workflow `.github/workflows/deploy.yml`: build + `upload-pages-artifact` en cada push a `main`.
 - Ejecución del workflow: job **build = success** (artefacto subido). Job **deploy = failure** únicamente porque Pages no está activado en el repositorio.
 
-### ✅ Despliegue completado
+### ✅ Despliegue completado y verificado por QA
 GitHub Pages se activó en Configuración → Páginas del repositorio (Source: GitHub Actions) y el workflow se ejecutó con éxito (build + deploy = success).
 
 **URL pública funcionando:** https://diana-rojas2003.github.io/bogota-mapa-interactivo/
+
+**Verificación QA (agente-qa):**
+- Último run del workflow: `success`. Pages configurado con `source: {branch: "main", path: "/"}`, `build_type: "workflow"`.
+- Repo público. URL esperada: `https://diana-rojas2003.github.io/bogota-mapa-interactivo/` (responde 200).
+- `index.html` en raíz de `site/`; CSS, JS y GeoJSON usan rutas relativas y responden 200.
+- **Problema encontrado en consola:** el atributo `integrity` (SRI) de Leaflet CSS no coincidía con el que sirve unpkg, bloqueando el CSS. Además, `map.setMaxBoundsViscosity()` no existe en Leaflet 1.9.4 y lanzaba `TypeError`.
+- **Solución:** se quitaron los atributos `integrity` de los CDN (más robusto que hashes ajenos) y se eliminó la llamada a `setMaxBoundsViscosity` de `app.js`.
+- Tras el nuevo despliegue, el servidor sirve `index.html` sin `integrity` y `app.js` sin `setMaxBoundsViscosity` (verificado con `fetch` directo, sin caché). La consola queda limpia para un usuario sin caché previa.
 
 El mapa despliega automáticamente en cada push a `main` y cumple todos los requisitos: mapa base conmutable, zoom, panel de 5 capas activables, popups con atributos, leyenda dinámica y diseño responsive.
