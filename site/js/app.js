@@ -91,7 +91,6 @@
     });
 
     map.setMaxBounds(BOGOTA_BOUNDS);
-    map.setMaxBoundsViscosity(1.0);
 
     const baseLayers = {
       'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
