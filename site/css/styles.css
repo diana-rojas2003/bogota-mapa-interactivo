@@ -1,0 +1,472 @@
+@charset "UTF-8";
+/* ==========================
+   Mapa interactivo de Bogotá
+   ========================== */
+
+:root {
+  --color-bg: #f5f7f9;
+  --color-surface: #ffffff;
+  --color-text: #1f2937;
+  --color-text-muted: #6b7280;
+  --color-border: #d7dee5;
+  --color-accent: #2563eb;
+  --color-accent-hover: #1d4ed8;
+  --color-danger: #d73027;
+  --shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  --shadow-lg: 0 10px 24px rgba(15, 23, 42, 0.12);
+  --radius: 10px;
+  --radius-sm: 6px;
+  --font-stack: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  margin: 0;
+  font-family: var(--font-stack);
+  color: var(--color-text);
+  background: var(--color-bg);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--color-accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+/* ---------- Header ---------- */
+.app-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow);
+}
+
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  max-width: 100%;
+  gap: 12px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #6a51a3, #1a9850);
+  color: #fff;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.brand-text { min-width: 0; }
+.brand-title {
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.brand-sub {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.chip {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #eef2f5;
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+  white-space: nowrap;
+}
+
+.btn-reset {
+  font-size: 12.5px;
+  padding: 5px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  color: var(--color-text);
+  cursor: pointer;
+}
+.btn-reset:hover { background: #f1f5f9; }
+.btn-reset:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* ---------- Mapa ---------- */
+.map-wrap {
+  position: relative;
+  height: calc(100vh - 56px);
+}
+
+#map { width: 100%; height: 100%; z-index: 0; }
+
+/* ---------- Panel de capas ---------- */
+.layers-panel {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: min(340px, 92vw);
+  max-width: 360px;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  z-index: 60;
+  transform: translateX(-105%);
+  transition: transform 240ms ease;
+}
+
+.layers-panel.open { transform: translateX(0); }
+
+.panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+  background: #f8fafc;
+}
+
+.panel-head h2 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.panel-search-wrap { padding: 8px 16px; }
+#panel-search {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  background: var(--color-surface);
+  font: inherit;
+  font-size: 12.5px;
+}
+#panel-search:focus { border-color: var(--color-accent); outline: none; }
+
+.layer-list { overflow-y: auto; padding: 4px 4px 10px; }
+
+.layer-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  margin-bottom: 8px;
+  background: var(--color-surface);
+  cursor: pointer;
+  transition: border-color 120ms, box-shadow 120ms, transform 100ms;
+}
+.layer-item:hover { border-color: #b8c4d0; }
+.layer-item.active { border-color: var(--color-accent); box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.10); }
+.layer-item input {
+  width: 0; height: 0; opacity: 0; margin: 0;
+}
+.layer-item .layer-marker {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: 1.5px solid rgba(0,0,0,0.15);
+  flex-shrink: 0;
+  transition: transform 100ms;
+}
+.layer-item.active .layer-marker { transform: scale(1.15); }
+.layer-item.active .layer-check {
+  font-size: 14px; line-height: 1;
+}
+.layer-body { flex: 1; min-width: 0; }
+.layer-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--color-text);
+}
+.layer-sub {
+  font-size: 11px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.layer-count {
+  font-size: 12px;
+  color: var(--color-accent);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.btn-close, .btn-close-legend {
+  background: transparent;
+  border: none;
+  font-size: 22px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  padding: 0 4px;
+}
+.btn-close:hover, .btn-close-legend:hover { color: var(--color-text); }
+
+.panel-foot { margin-top: auto; padding: 10px 16px; border-top: 1px solid var(--color-border); }
+.panel-note {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  line-height: 1.5;
+}
+
+/* ---------- Toggle móvil ---------- */
+.btn-panel-toggle {
+  position: absolute;
+  top: 76px;
+  left: 12px;
+  z-index: 55;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--color-text);
+  box-shadow: var(--shadow);
+  display: none;
+}
+.btn-panel-toggle:hover { background: #f1f5f9; }
+
+/* ---------- Leyenda ---------- */
+.legend {
+  position: absolute;
+  top: 76px;
+  right: 12px;
+  z-index: 55;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: min(280px, 90vw);
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.legend-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--color-border);
+  background: #f8fafc;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+
+.legend-title {
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.legend-body {
+  padding: 10px 12px;
+  overflow-y: auto;
+  max-height: 60vh;
+}
+
+.legend-empty {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--color-text-muted);
+  text-align: center;
+  padding: 14px 8px;
+}
+
+.legend-entry {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12.5px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.legend-entry:last-child { border-bottom: none; }
+.legend-swatch {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(0,0,0,0.15);
+  flex-shrink: 0;
+}
+.legend-label { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.legend-count {
+  font-size: 11.5px;
+  color: var(--color-text-muted);
+  white-space: nowrap;
+}
+.legend-point {
+  width: 10px; height: 10px; border-radius: 50%; border: none;
+}
+
+/* ---------- Info flotante ---------- */
+.floating-info {
+  position: absolute;
+  bottom: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;
+  background: rgba(15, 23, 42, 0.82);
+  color: #fff;
+  padding: 6px 12px;
+  border-radius: 999px;
+  font-size: 12px;
+  pointer-events: none;
+  white-space: nowrap;
+  opacity: 0;
+  transition: opacity 180ms;
+}
+.floating-info.show { opacity: 1; }
+
+/* ---------- Fuentes ---------- */
+.sources {
+  position: absolute;
+  bottom: 12px;
+  right: 12px;
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.btn-sources {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  padding: 5px 10px;
+  font-size: 11.5px;
+  color: var(--color-text);
+  cursor: pointer;
+  box-shadow: var(--shadow);
+}
+.btn-sources:hover { background: #f1f5f9; }
+.btn-sources:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+.sources-detail {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-lg);
+  width: 320px;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--color-text-muted);
+  line-height: 1.45;
+}
+.sources-detail h4 {
+  margin: 0 0 6px 0;
+  font-size: 12.5px;
+  color: var(--color-text);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.sources-detail ul { margin: 0 0 8px 0; padding-left: 16px; }
+.sources-detail li { margin-bottom: 4px; }
+.sources-detail p { margin: 0 0 6px 0; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 819px) {
+  .map-wrap { height: calc(100vh - 56px); }
+  .btn-panel-toggle { display: block; }
+  .btn-reset { padding: 4px 10px; font-size: 11.5px; }
+  .chip { display: none; }
+  .panel-head h2 { font-size: 14px; }
+  .sources-detail { width: min(260px, 92vw); }
+}
+@media (max-width: 479px) {
+  .brand-title { font-size: 14.5px; }
+  .brand-sub { display: none; }
+}
+
+/* ---------- Popups ---------- */
+.bogota-popup .popup {
+  padding: 6px 8px;
+  min-width: 180px;
+  font-size: 13px;
+}
+.bogota-popup .popup strong {
+  display: block;
+  font-size: 14px;
+  margin-bottom: 6px;
+  color: #111827;
+  border-bottom: 2px solid #eef2f5;
+  padding-bottom: 4px;
+}
+.bogota-popup .popup-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+  font-size: 12.5px;
+}
+.bogota-popup .popup-label {
+  color: #4b5563;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.bogota-popup .popup-value {
+  color: #111827;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Botón acercar capa ---------- */
+.btn-zoom-layer {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-sm);
+  width: 24px;
+  height: 24px;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  margin-left: 6px;
+}
+.btn-zoom-layer:hover { background: #f1f5f9; color: var(--color-accent); border-color: var(--color-accent); }
+.btn-zoom-layer:focus-visible { outline: 2px solid var(--color-accent); outline-offset: 2px; }
+
+/* ---------- Utilidades ---------- */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+.hidden { display: none !important; }
