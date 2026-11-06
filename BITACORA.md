@@ -122,13 +122,9 @@ Todos los modelos usados son gratuitos ($0 por millón de tokens). Estimación a
 - Workflow `.github/workflows/deploy.yml`: build + `upload-pages-artifact` en cada push a `main`.
 - Ejecución del workflow: job **build = success** (artefacto subido). Job **deploy = failure** únicamente porque Pages no está activado en el repositorio.
 
-### ⏳ Pendiente (una sola acción en GitHub, no expuesta por API)
-GitHub no permite crear un sitio de Pages por API la primera vez; requiere activarlo una vez en la interfaz del repositorio:
+### ✅ Despliegue completado
+GitHub Pages se activó en Configuración → Páginas del repositorio (Source: GitHub Actions) y el workflow se ejecutó con éxito (build + deploy = success).
 
-1. Ir a https://github.com/diana-rojas2003/bogota-mapa-interactivo/settings/pages
-2. En "Build and deployment" → Source: seleccionar **GitHub Actions**.
-3. Guardar. Con eso queda habilitado.
-4. Volver a ejecutar el workflow (Actions → "Deploy mapa de Bogotá a GitHub Pages" → Re-run jobs) o hacer un nuevo push a `main`.
-5. URL pública: https://diana-rojas2003.github.io/bogota-mapa-interactivo/
+**URL pública funcionando:** https://diana-rojas2003.github.io/bogota-mapa-interactivo/
 
-Una vez activado, el mapa despliega automáticamente en cada push a `main` y cumple todos los requisitos: base conmutable, zoom, panel de 5 capas activables, popups con atributos, leyenda dinámica y diseño responsive.
+El mapa despliega automáticamente en cada push a `main` y cumple todos los requisitos: mapa base conmutable, zoom, panel de 5 capas activables, popups con atributos, leyenda dinámica y diseño responsive.
