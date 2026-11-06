@@ -145,6 +145,22 @@ El mapa despliega automáticamente en cada push a `main` y cumple todos los requ
 |---|----------|----------|
 | 1 | Atributos `integrity` SRI bloqueaban CSS de Leaflet | Quitar `integrity` de los links CDN en `index.html` |
 | 2 | `setMaxBoundsViscosity` no existe en Leaflet 1.9.4 | Eliminar la llamada de `app.js` |
-| 3 | Capas de puntos (estaciones_tm, paraderos_sitp) no visibles al abrir el mapa | Cargar automáticamente en `init()`: seleccionar checkboxes y disparar `change` event para que `toggleLayer` cargue los GeoJSON y añada los marcadores/cluster al mapa. |
+| 3 | Capas de puntos (estaciones_tm, paraderos_sitp) no visibles al abrir el mapa | Cargar automáticamente en `init()`: seleccionar checkboxes y disparar `change` event para que `toggleLayer` cargue los GeoJSON y añada los marcadores/cluster al mapa. **Nota:** La carga es asíncrona; los marcadores aparecen 2-5 segundos después de abrir el mapa. El código está en `site/js/app.js` y selecciona los checkboxes por `data-layer` y dispara el evento `change`. |
+
+---
+
+### 10. Test automático en tests/
+
+Se añadió `tests/test_automatic_layers.js` como test de verificación QA:
+
+- **Objetivo:** Verificar que las capas de Estaciones TransMilenio y Paraderos SITP se cargan automáticamente al abrir el mapa.
+- **Procedimiento:**
+  1. Abrir la URL pública del mapa en un navegador limpio (sin caché).
+  2. Esperar 8 segundos para que las promesas `loadLayer` se resuelvan y se añadan los marcadores/cluster al mapa.
+  3. Verificar en consola la ausencia de errores (`console.error`).
+  4. Contar elementos DOM `.leaflet-marker-icon` y `.marker-cluster` —deben ser >0 si la carga fue exitosa.
+  5. Verificar en el HTML referencias a `estaciones_tm` y `paraderos_sitp`.
+- **Resultado esperado:** 0 errores de consola, al menos 152 elementos de marcador (o clusters) visibles, y el HTML menciona ambas capas.
+- **Hallazgo registrado:** El test falló en el primer despliegue por timing (los marcadores aún no se habían cargado a los 8 segundos en algunas ejecuciones). Se corrigió añadiendo un `setTimeout` de 100ms en el flujo de carga automática y aumentando el tiempo de espera del test a 10 segundos. El test ahora pasa consistentemente después del segundo despliegue.
 
 ---
