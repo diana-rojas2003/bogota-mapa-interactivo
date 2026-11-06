@@ -14,8 +14,11 @@
   const DATA_DIR = 'data';
   const BOGOTA_BOUNDS = [[3.5, -74.6], [5.1, -73.7]]; // [[south, west], [north, east]]
 
-  // Clases que usan agrupamiento de marcadores (capa de puntos con muchos elementos)
-  const CLUSTER_LAYERS = new Set(['estaciones_tm', 'paraderos_sitp']);
+  // Capas que usan agrupamiento de marcadores (SITP tiene 7604 paraderos)
+  const CLUSTER_LAYERS = new Set(['paraderos_sitp']);
+
+  // Capas activadas por defecto al cargar el mapa
+  const DEFAULT_ACTIVE_LAYERS = new Set(['estaciones_tm', 'paraderos_sitp']);
 
   // --------------------------------------------------------------------------
   // Utilidades
@@ -77,7 +80,8 @@
   let manifest = null;
   let map = null;
   let layerControl = null;
-  const layersState = {}; // key -> { key, cfg, container, geojson, loaded, loading, failed, count }
+  const layersState = {}; // key -> { key, cfg, container, geojson, loaded, loading, failed, count, active }
+  window._debug = { layersState, getMap: () => map };
 
   // --------------------------------------------------------------------------
   // Mapa base
@@ -86,11 +90,11 @@
     map = L.map('map', {
       center: MAP_CENTER,
       zoom: MAP_ZOOM,
+      maxBounds: BOGOTA_BOUNDS,
+      maxBoundsViscosity: 1.0,
       preferCanvas: true,
       zoomControl: true,
     });
-
-    map.setMaxBounds(BOGOTA_BOUNDS);
 
     const baseLayers = {
       'OpenStreetMap': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
@@ -105,7 +109,6 @@
     layerControl = L.control.layers(baseLayers).addTo(map);
     baseLayers['OpenStreetMap'].addTo(map);
 
-    // Control de zoom por defecto ya viene con Leaflet; lo dejamos por defecto.
     return map;
   }
 
@@ -150,7 +153,7 @@
 
   async function loadLayer(key) {
     const state = layersState[key];
-    if (state.loaded || state.loading || state.failed) return state;
+    if (!state || state.loaded || state.loading || state.failed) return state;
     state.loading = true;
     updateLayerUI(key);
     showInfo(`Cargando ${state.cfg.titulo}…`);
@@ -173,11 +176,11 @@
             spiderfyOnMaxZoom: false,
             disableClusteringAtZoom: 16,
           })
-        : L.layerGroup();
+        : L.featureGroup();
 
       const geojson = L.geoJSON(data, {
         style: (f) => styleFor(state.cfg, f),
-        pointToLayer: (latlng) => pointToLayer(state.cfg, latlng),
+        pointToLayer: (feature, latlng) => pointToLayer(state.cfg, latlng),
         onEachFeature: onEachFeature(state.cfg),
       }).addTo(container);
 
@@ -187,21 +190,21 @@
       state.loaded = true;
       state.loading = false;
 
-      // Si la capa está marcada como activa, añadirla al mapa ahora
-      const checkbox = $(`input[data-layer="${key}"]`);
-      if (checkbox && checkbox.checked) {
+      // Si la capa debe estar activa, añadirla al mapa
+      if (state.active && map && !map.hasLayer(container)) {
         container.addTo(map);
       }
       updateLayerUI(key);
       updateLegend();
       updateTotal();
-      showInfo(`${state.cfg.titulo} cargada (${state.count} elementos)`, 2500);
+      showInfo(`${state.cfg.titulo} cargada (${state.count.toLocaleString('es-CO')} elementos)`, 2500);
     } catch (err) {
       console.error(`Error cargando capa ${key}:`, err);
       state.failed = true;
       state.loading = false;
+      state.error = err.message + ' --- ' + (err.stack || '');
       updateLayerUI(key);
-      showInfo(`No se pudo cargar ${state.cfg.titulo}.`, 4000);
+      showInfo(`Error cargando ${state.cfg.titulo}: ${err.message}`, 4000);
     }
     return state;
   }
@@ -209,14 +212,15 @@
   function toggleLayer(key, checked) {
     const state = layersState[key];
     if (!state) return;
+    state.active = Boolean(checked);
     if (checked) {
       if (state.failed) return;
       if (!state.loaded) {
         loadLayer(key);
-      } else if (state.container) {
+      } else if (state.container && map && !map.hasLayer(state.container)) {
         state.container.addTo(map);
       }
-    } else if (state.container) {
+    } else if (state.container && map && map.hasLayer(state.container)) {
       map.removeLayer(state.container);
     }
     updateLayerUI(key);
@@ -226,10 +230,12 @@
 
   function zoomToLayer(key) {
     const state = layersState[key];
-    if (!state || !state.container) return;
+    if (!state) return;
+    const target = state.geojson || state.container;
+    if (!target || typeof target.getBounds !== 'function') return;
     try {
-      const bounds = state.container.getBounds();
-      if (bounds.isValid()) {
+      const bounds = target.getBounds();
+      if (bounds && bounds.isValid && bounds.isValid()) {
         map.fitBounds(bounds, { padding: [40, 60], maxZoom: 15 });
       }
     } catch (err) {
@@ -247,47 +253,62 @@
     order.forEach((key) => {
       const state = layersState[key];
       const cfg = state.cfg;
+      const isActive = Boolean(state.active);
+
       const item = document.createElement('div');
-      item.className = 'layer-item' + (state.container && map.hasLayer(state.container) ? ' active' : '') + (state.failed ? ' failed' : '');
+      item.className = 'layer-item' + (isActive ? ' active' : '') + (state.failed ? ' failed' : '');
+
       const marker = document.createElement('div');
       marker.className = 'layer-marker';
       marker.style.backgroundColor = cfg.color;
       if (cfg.geometry === 'point') marker.style.borderRadius = '50%';
+
+      const isAttached = state.container && map && map.hasLayer(state.container);
       const check = document.createElement('span');
       check.className = 'layer-check';
       check.textContent = '✓';
-      check.style.display = (state.container && map.hasLayer(state.container)) ? 'block' : 'none';
+      check.style.display = isAttached ? 'block' : 'none';
+
       const body = document.createElement('div');
       body.className = 'layer-body';
+
       const title = document.createElement('div');
       title.className = 'layer-title';
       title.textContent = cfg.titulo;
+
       const sub = document.createElement('div');
       sub.className = 'layer-sub';
       sub.textContent = cfg.fuente;
+
       const count = document.createElement('div');
       count.className = 'layer-count';
-      count.textContent = state.loaded ? `${state.count} elementos` : state.failed ? 'error' : '—';
+      count.textContent = state.loaded ? `${state.count.toLocaleString('es-CO')} elementos` : state.failed ? 'error' : (state.loading ? 'cargando…' : '—');
+
       body.appendChild(title);
       body.appendChild(sub);
       body.appendChild(count);
+
       const input = document.createElement('input');
       input.type = 'checkbox';
       input.dataset.layer = key;
-      input.checked = state.container && map.hasLayer(state.container);
-      input.disabled = state.failed;
+      input.checked = isActive;
+      input.disabled = Boolean(state.failed);
       input.addEventListener('change', (e) => toggleLayer(key, e.target.checked));
+
       item.appendChild(input);
       item.appendChild(marker);
       item.appendChild(check);
       item.appendChild(body);
+
       item.addEventListener('click', (e) => {
         if (e.target.tagName === 'INPUT') return;
         input.checked = !input.checked;
         input.dispatchEvent(new Event('change'));
       });
+
       // Doble clic para acercar a la capa
       item.addEventListener('dblclick', () => zoomToLayer(key));
+
       const btnZoom = document.createElement('button');
       btnZoom.type = 'button';
       btnZoom.className = 'btn-zoom-layer';
@@ -297,6 +318,7 @@
         e.stopPropagation();
         zoomToLayer(key);
       });
+
       item.appendChild(btnZoom);
       list.appendChild(item);
     });
@@ -304,23 +326,25 @@
 
   function updateLayerUI(key) {
     const state = layersState[key];
+    if (!state) return;
     const input = $(`input[data-layer="${key}"]`);
+    if (!input) return;
     const item = input.closest('.layer-item');
     if (!item) return;
-    const active = state.container && map.hasLayer(state.container);
-    item.classList.toggle('active', active);
-    item.classList.toggle('failed', !!state.failed);
+    const isAttached = Boolean(state.container && map && map.hasLayer(state.container));
+    item.classList.toggle('active', Boolean(state.active));
+    item.classList.toggle('failed', Boolean(state.failed));
     const check = item.querySelector('.layer-check');
-    if (check) check.style.display = active ? 'block' : 'none';
+    if (check) check.style.display = isAttached ? 'block' : 'none';
     const count = item.querySelector('.layer-count');
     if (count) {
       if (state.failed) count.textContent = 'error';
       else if (state.loading) count.textContent = 'cargando…';
-      else if (state.loaded) count.textContent = `${state.count} elementos`;
+      else if (state.loaded) count.textContent = `${state.count.toLocaleString('es-CO')} elementos`;
       else count.textContent = '—';
     }
-    if (input) input.checked = active;
-    if (input) input.disabled = state.failed;
+    input.checked = Boolean(state.active);
+    input.disabled = Boolean(state.failed);
   }
 
   // --------------------------------------------------------------------------
@@ -328,12 +352,12 @@
   // --------------------------------------------------------------------------
   function updateLegend() {
     const body = $('#legend-body');
-    const empty = $('#legend-body .legend-empty');
+    if (!body) return;
     body.innerHTML = '';
     let any = false;
     Object.keys(layersState).forEach((key) => {
       const state = layersState[key];
-      if (!(state.container && map.hasLayer(state.container))) return;
+      if (!(state.container && map && map.hasLayer(state.container))) return;
       any = true;
       const entry = document.createElement('div');
       entry.className = 'legend-entry';
@@ -346,7 +370,7 @@
       label.textContent = state.cfg.titulo;
       const count = document.createElement('div');
       count.className = 'legend-count';
-      count.textContent = state.count ? `${state.count}` : '0';
+      count.textContent = state.count ? `${state.count.toLocaleString('es-CO')}` : '0';
       entry.appendChild(swatch);
       entry.appendChild(label);
       entry.appendChild(count);
@@ -368,10 +392,33 @@
     let total = 0;
     Object.keys(layersState).forEach((key) => {
       const state = layersState[key];
-      if (state.container && map.hasLayer(state.container)) total += state.count || 0;
+      if (state.container && map && map.hasLayer(state.container)) total += state.count || 0;
     });
     const chip = $('#chip-total');
     if (chip) chip.textContent = total ? `${total.toLocaleString('es-CO')} elementos` : 'Sin capas activas';
+
+    // Para trazabilidad y tests
+    let debugEl = $('#debug-state');
+    if (!debugEl) {
+      debugEl = document.createElement('div');
+      debugEl.id = 'debug-state';
+      debugEl.hidden = true;
+      document.body.appendChild(debugEl);
+    }
+    const summary = {};
+    Object.keys(layersState).forEach(k => {
+      const s = layersState[k];
+      summary[k] = {
+        loaded: s.loaded,
+        loading: s.loading,
+        failed: s.failed,
+        error: s.error,
+        count: s.count,
+        active: s.active,
+        onMap: Boolean(s.container && map && map.hasLayer(s.container))
+      };
+    });
+    debugEl.textContent = JSON.stringify({ total, summary, mapReady: Boolean(window.__MAP_READY__) });
   }
 
   let infoTimer = null;
@@ -395,7 +442,7 @@
     html += `<p><strong>CRS:</strong> ${escapeHtml(manifest.crs || 'EPSG:4326')}</p>`;
     html += `<ul>`;
     Object.values(manifest.layers || {}).forEach((l) => {
-      html += `<li><strong>${escapeHtml(l.titulo)}</strong> — ${escapeHtml(l.archivo)} (${l.features} elementos). Fuente: ${escapeHtml(l.fuente)}.</li>`;
+      html += `<li><strong>${escapeHtml(l.titulo)}</strong> — ${escapeHtml(l.archivo)} (${l.features.toLocaleString('es-CO')} elementos). Fuente: ${escapeHtml(l.fuente)}.</li>`;
     });
     html += `</ul>`;
     html += `<p style="font-size:11px; margin-top:8px;">Datos obtenidos por script y versionados en el repositorio.</p>`;
@@ -421,11 +468,41 @@
     const layers = manifest.layers || {};
     const order = ['localidades', 'ciclorrutas', 'estaciones_tm', 'paraderos_sitp', 'parques'];
     (order.filter((k) => layers[k])).forEach((key) => {
-      layersState[key] = { key, cfg: layers[key], container: null, geojson: null, loaded: false, loading: false, failed: false, count: 0 };
+      layersState[key] = {
+        key,
+        cfg: layers[key],
+        container: null,
+        geojson: null,
+        loaded: false,
+        loading: false,
+        failed: false,
+        count: 0,
+        active: DEFAULT_ACTIVE_LAYERS.has(key)
+      };
     });
 
     renderSources();
+    renderLayerList();
+    initMap();
+
+    // Iniciar carga de capas activas por defecto
+    const loadPromises = [];
+    for (const key of DEFAULT_ACTIVE_LAYERS) {
+      if (layersState[key]) {
+        loadPromises.push(loadLayer(key));
+      }
+    }
+    await Promise.allSettled(loadPromises);
+
     updateTotal();
+    updateLegend();
+    window.__MAP_READY__ = true;
+    window.dispatchEvent(new CustomEvent('map:ready', {
+      detail: {
+        activeLayers: Array.from(DEFAULT_ACTIVE_LAYERS),
+        layersState
+      }
+    }));
 
     // Panel móvil
     const btnToggle = $('#btn-panel-toggle');
@@ -435,6 +512,7 @@
     const legend = $('#legend');
     const btnSources = $('#btn-sources');
     const detail = $('#sources-detail');
+    const btnReset = $('#btn-reset');
 
     if (btnToggle) {
       btnToggle.addEventListener('click', () => panel.classList.toggle('open'));
@@ -454,38 +532,15 @@
         else btnSources.textContent = 'Fuentes de datos ▾';
       });
     }
-
-    // Cerrar panel al hacer clic en una capa (móvil) — opcional, lo dejamos abierto.
-    renderLayerList();
-
-    // --- CARGAR AUTOMÁTICAMENTE las capas de puntos por defecto ---
-    // Estaciones TransMilenio y Paraderos SITP (con clustering)
-    const defaultPointLayers = ['estaciones_tm', 'paraderos_sitp'];
-    for (const key of defaultPointLayers) {
-      const state = layersState[key];
-      if (state && !state.loaded && !state.failed) {
-        // Pequeño delay para asegurar que el DOM esté completamente renderizado
-        setTimeout(() => {
-          const input = $(`input[data-layer="${key}"]`);
-          if (input) {
-            // Forzar checked y disparar change con detalles completos
-            input.checked = true;
-            const changeEvent = new Event('change', {
-              bubbles: true,
-              cancelable: true,
-              target: input,
-              currentTarget: input
-            });
-            input.dispatchEvent(changeEvent);
-          }
-        }, 100); // 100ms delay para que el DOM esté estable
-      }
+    if (btnReset) {
+      btnReset.addEventListener('click', () => {
+        if (map) map.setView(MAP_CENTER, MAP_ZOOM);
+      });
     }
 
-    initMap();
-    // Informar al usuario qué capas se están cargando automáticamente
-    const pointLayerNames = defaultPointLayers.map(key => layersState[key]?.cfg?.titulo || key);
-    showInfo(`Mapa listo. Se cargan automáticamente: ${pointLayerNames.join(', ')}`, 5000);
+    const defaultNames = Array.from(DEFAULT_ACTIVE_LAYERS)
+      .map((k) => layersState[k]?.cfg?.titulo || k);
+    showInfo(`Mapa listo. Capas activas: ${defaultNames.join(', ')}`, 3500);
   }
 
   // Arranque
