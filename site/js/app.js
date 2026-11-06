@@ -464,19 +464,28 @@
     for (const key of defaultPointLayers) {
       const state = layersState[key];
       if (state && !state.loaded && !state.failed) {
-        loadLayer(key).then(state => {
-          // Marcar el checkbox como activado después de cargarse
+        // Pequeño delay para asegurar que el DOM esté completamente renderizado
+        setTimeout(() => {
           const input = $(`input[data-layer="${key}"]`);
           if (input) {
+            // Forzar checked y disparar change con detalles completos
             input.checked = true;
-            input.dispatchEvent(new Event('change'));
+            const changeEvent = new Event('change', {
+              bubbles: true,
+              cancelable: true,
+              target: input,
+              currentTarget: input
+            });
+            input.dispatchEvent(changeEvent);
           }
-        });
+        }, 100); // 100ms delay para que el DOM esté estable
       }
     }
 
     initMap();
-    showInfo('Mapa listo. Las capas de TransMilenio y SITP se cargan automáticamente.', 2500);
+    // Informar al usuario qué capas se están cargando automáticamente
+    const pointLayerNames = defaultPointLayers.map(key => layersState[key]?.cfg?.titulo || key);
+    showInfo(`Mapa listo. Se cargan automáticamente: ${pointLayerNames.join(', ')}`, 5000);
   }
 
   // Arranque
